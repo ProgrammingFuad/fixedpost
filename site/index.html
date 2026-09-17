@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fixedpost — The Operating System for Off-Duty Policing</title>
+<meta name="description" content="A purpose-built platform for scheduling, assignment, billing, and reporting for law-enforcement paid detail programs. Built to the scale of the NYPD Paid Detail Program — EPIN 05626P0001.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,1 31,6.8 31,21.8 16,31 1,21.8 1,6.8' fill='%230A101F' stroke='%23C9A227' stroke-width='2'/%3E%3Ctext x='16' y='21.5' font-family='Helvetica,Arial,sans-serif' font-size='14' font-weight='800' fill='%23C9A227' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0A101F;
+    --ink-2: #0E1730;
+    --panel: #121D3B;
+    --panel-2: #16234A;
+    --paper: #F2EDE0;
+    --paper-2: #E9E2CF;
+    --gold: #C9A227;
+    --gold-bright: #E8BE3F;
+    --white: #F7F5EE;
+    --dim: #8A94AD;
+    --dim-2: #5A6480;
+    --green: #46C186;
+    --red: #E06C5A;
+    --hairline: rgba(201, 162, 39, .22);
+    --hairline-w: rgba(247, 245, 238, .10);
+    --font-display: "Archivo", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--white);
+    font-family: var(--font-display);
+    font-variation-settings: "wdth" 100;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--gold); color: var(--ink); }
+
+  /* ---- grain + atmosphere ---- */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    opacity: .05;
+    pointer-events: none;
+    z-index: 2000;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; }
+
+  .mono {
+    font-family: var(--font-mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+
+  /* ================= TOP BAR ================= */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    border-bottom: 1px solid var(--hairline-w);
+    background: rgba(10, 16, 31, .82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 34px; height: 34px; flex: none;
+    display: grid; place-items: center;
+    border: 1.5px solid var(--gold);
+    color: var(--gold);
+    font-weight: 800; font-size: 15px;
+    letter-spacing: -.02em;
+    clip-path: polygon(50% 0, 100% 18%, 100% 68%, 50% 100%, 0 68%, 0 18%);
+  }
+  .brand-name {
+    font-weight: 800; font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .brand-name em { font-style: normal; color: var(--gold); }
+  .topbar nav { display: flex; gap: 34px; }
+  .topbar nav a {
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); transition: color .2s;
+  }
+  .topbar nav a:hover { color: var(--gold-bright); }
+  .top-cta {
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink); background: var(--gold);
+    padding: 10px 20px;
+    transition: background .2s, transform .2s;
+  }
+  .top-cta:hover { background: var(--gold-bright); transform: translateY(-1px); }
+  @media (max-width: 900px) { .topbar nav { display: none; } }
+
+  /* ================= EPIN TICKER ================= */
+  .ticker {
+    position: fixed; top: 64px; left: 0; right: 0; z-index: 999;
+    background: var(--gold);
+    color: var(--ink);
+    overflow: hidden;
+    height: 26px;
+    display: flex; align-items: center;
+  }
+  .ticker-track {
+    display: flex; gap: 0; white-space: nowrap;
+    animation: ticker 42s linear infinite;
+  }
+  .ticker-track span {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    padding: 0 28px;
+    border-right: 1px solid rgba(10,16,31,.28);
+  }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ================= HERO ================= */
+  .hero {
+    position: relative;
+    padding: 190px 0 90px;
+    background:
+      radial-gradient(1100px 500px at 78% -5%, rgba(201,162,39,.10), transparent 62%),
+      radial-gradient(900px 600px at -10% 30%, rgba(22,35,74,.85), transparent 60%),
+      var(--ink);
+  }
+  .hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--hairline-w) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hairline-w) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(900px 640px at 65% 8%, rgba(0,0,0,.55), transparent 75%);
+    -webkit-mask-image: radial-gradient(900px 640px at 65% 8%, rgba(0,0,0,.55), transparent 75%);
+    pointer-events: none;
+  }
+  .hero .wrap { position: relative; z-index: 1; }
+
+  .hero-kicker {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid var(--hairline);
+    padding: 8px 16px;
+    margin-bottom: 34px;
+  }
+  .hero-kicker::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(70,193,134,.6);
+    animation: pulse 2.2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(70,193,134,.55); }
+    70% { box-shadow: 0 0 0 9px rgba(70,193,134,0); }
+    100% { box-shadow: 0 0 0 0 rgba(70,193,134,0); }
+  }
+
+  h1 {
+    font-size: clamp(46px, 7.2vw, 104px);
+    line-height: .95;
+    font-weight: 800;
+    letter-spacing: -.025em;
+    font-variation-settings: "wdth" 112;
+    text-transform: uppercase;
+    max-width: 13ch;
+  }
+  h1 .line { display: block; overflow: hidden; }
+  h1 .line > span { display: inline-block; transform: translateY(110%); animation: rise .9s cubic-bezier(.2,.75,.2,1) forwards; }
+  h1 .line:nth-child(2) > span { animation-delay: .1s; }
+  h1 .line:nth-child(3) > span { animation-delay: .2s; }
+  h1 .accent { color: var(--gold); }
+  @keyframes rise { to { transform: translateY(0); } }
+
+  .hero-sub {
+    margin-top: 34px;
+    max-width: 560px;
+    font-size: 19px;
+    line-height: 1.65;
+    color: var(--dim);
+    opacity: 0; animation: fadeUp .8s ease .45s forwards;
+  }
+  .hero-sub strong { color: var(--white); font-weight: 600; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+  .hero-ctas { display: flex; gap: 16px; margin-top: 42px; flex-wrap: wrap; opacity: 0; animation: fadeUp .8s ease .6s forwards; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 17px 30px;
+    transition: transform .2s, background .2s, color .2s, border-color .2s;
+  }
+  .btn-gold { background: var(--gold); color: var(--ink); }
+  .btn-gold:hover { background: var(--gold-bright); transform: translateY(-2px); }
+  .btn-ghost { border: 1px solid var(--hairline-w); color: var(--white); }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold-bright); transform: translateY(-2px); }
+  .btn .arrow { transition: transform .2s; }
+  .btn:hover .arrow { transform: translateX(4px); }
+
+  /* stats strip */
+  .stats {
+    margin-top: 84px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--hairline-w);
+    opacity: 0; animation: fadeUp .8s ease .75s forwards;
+  }
+  .stat {
+    padding: 30px 28px;
+    border-right: 1px solid var(--hairline-w);
+    position: relative;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-num {
+    font-size: clamp(34px, 3.6vw, 52px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    font-variation-settings: "wdth" 108;
+    color: var(--white);
+    line-height: 1.05;
+  }
+  .stat-num .unit { color: var(--gold); }
+  .stat-label {
+    margin-top: 10px;
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(2) { border-right: none; }
+    .stat:nth-child(-n+2) { border-bottom: 1px solid var(--hairline-w); }
+  }
+
+  /* ================= DETAIL BOARD ================= */
+  .board-section { padding: 30px 0 110px; position: relative; }
+  .board {
+    border: 1px solid var(--hairline);
+    background: linear-gradient(180deg, var(--panel), var(--ink-2));
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,.7);
+  }
+  .board-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 26px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .board-title { display: flex; align-items: center; gap: 14px; }
+  .board-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2.2s infinite; }
+  .board-title span {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--gold);
+  }
+  .board-clock { font-family: var(--font-mono); font-size: 12px; color: var(--dim); letter-spacing: .1em; }
+  .board-table { width: 100%; border-collapse: collapse; }
+  .board-table th {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--dim-2);
+    text-align: left;
+    padding: 14px 26px;
+    border-bottom: 1px solid var(--hairline-w);
+  }
+  .board-table td {
+    padding: 17px 26px;
+    border-bottom: 1px solid var(--hairline-w);
+    font-size: 14.5px;
+    vertical-align: middle;
+  }
+  .board-table tr:last-child td { border-bottom: none; }
+  .board-table tbody tr { transition: background .25s; }
+  .board-table tbody tr:hover { background: rgba(201,162,39,.05); }
+  .td-id { font-family: var(--font-mono); font-size: 12px; color: var(--dim); letter-spacing: .06em; }
+  .td-loc strong { display: block; font-weight: 600; }
+  .td-loc small { color: var(--dim); font-size: 12.5px; }
+  .td-tour { font-family: var(--font-mono); font-size: 12.5px; color: var(--white); }
+  .td-officers { font-family: var(--font-mono); font-size: 12.5px; color: var(--dim); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    padding: 6px 12px;
+    border: 1px solid;
+  }
+  .badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .badge-filled { color: var(--green); border-color: rgba(70,193,134,.35); background: rgba(70,193,134,.07); }
+  .badge-checked { color: var(--gold-bright); border-color: rgba(232,190,63,.4); background: rgba(232,190,63,.07); }
+  .badge-posted { color: var(--dim); border-color: rgba(138,148,173,.35); background: rgba(138,148,173,.06); }
+  .badge-closed { color: #7FA8E0; border-color: rgba(127,168,224,.35); background: rgba(127,168,224,.07); }
+  .board-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 26px;
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim-2);
+  }
+  .board-foot .ok { color: var(--green); }
+  @media (max-width: 900px) {
+    .board-table th:nth-child(4), .board-table td:nth-child(4) { display: none; }
+  }
+  @media (max-width: 640px) {
+    .board-table th:nth-child(1), .board-table td:nth-child(1) { display: none; }
+    .board-table th, .board-table td { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* ================= SECTION SCAFFOLD ================= */
+  .sec-head { display: flex; align-items: baseline; gap: 26px; margin-bottom: 64px; }
+  .sec-index {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em;
+    color: var(--gold);
+    flex: none;
+  }
+  .sec-head-rule { flex: 1; height: 1px; background: var(--hairline); align-self: center; }
+  h2 {
+    font-size: clamp(34px, 4.6vw, 62px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.02;
+    text-transform: uppercase;
+    font-variation-settings: "wdth" 110;
+  }
+  h2 .accent { color: var(--gold); }
+  .sec-sub { max-width: 620px; color: var(--dim); font-size: 18px; margin-top: 20px; }
+
+  /* reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.75,.25,1); transition-delay: calc(var(--i, 0) * 90ms); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* ================= SCOPE / PILLARS ================= */
+  .scope { padding: 110px 0; border-top: 1px solid var(--hairline-w); }
+  .pillars {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--hairline-w);
+    border-left: 1px solid var(--hairline-w);
+  }
+  .pillar {
+    border-right: 1px solid var(--hairline-w);
+    border-bottom: 1px solid var(--hairline-w);
+    padding: 38px 32px 42px;
+    position: relative;
+    transition: background .3s;
+  }
+  .pillar:hover { background: rgba(201,162,39,.04); }
+  .pillar-idx {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--dim-2);
+    display: block; margin-bottom: 26px;
+  }
+  .pillar:hover .pillar-idx { color: var(--gold); }
+  .pillar h3 {
+    font-size: 21px; font-weight: 700; letter-spacing: -.01em;
+    text-transform: uppercase; font-variation-settings: "wdth" 106;
+    margin-bottom: 14px;
+  }
+  .pillar p { color: var(--dim); font-size: 15px; line-height: 1.65; }
+  .pillar ul { margin-top: 16px; list-style: none; }
+  .pillar li {
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .04em;
+    color: var(--dim);
+    padding: 7px 0 7px 18px;
+    position: relative;
+    border-top: 1px dashed var(--hairline-w);
+  }
+  .pillar li::before { content: "+"; position: absolute; left: 0; color: var(--gold); }
+  @media (max-width: 1000px) { .pillars { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .pillars { grid-template-columns: 1fr; } }
+
+  /* ================= PAPER (LIGHT) — MONEY FLOW ================= */
+  .paper-sec {
+    background: var(--paper);
+    color: var(--ink);
+    padding: 120px 0;
+    position: relative;
+  }
+  .paper-sec::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(10,16,31,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10,16,31,.05) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: linear-gradient(180deg, transparent, rgba(0,0,0,.7) 30%, transparent 90%);
+    -webkit-mask-image: linear-gradient(180deg, transparent, rgba(0,0,0,.7) 30%, transparent 90%);
+    pointer-events: none;
+  }
+  .paper-sec .wrap { position: relative; }
+  .paper-sec .sec-sub { color: #4A4636; }
+  .paper-sec .sec-head-rule { background: rgba(10,16,31,.18); }
+  .paper-sec h2 .accent { color: #A07E14; }
+
+  .flow {
+    margin-top: 20px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    counter-reset: step;
+  }
+  .flow-step {
+    border-left: 2px solid var(--ink);
+    padding: 8px 28px 10px 22px;
+    position: relative;
+  }
+  .flow-step::before {
+    counter-increment: step;
+    content: "0" counter(step);
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: .1em;
+    color: var(--paper);
+    background: var(--ink);
+    padding: 4px 9px;
+    position: absolute; top: -16px; left: -2px;
+  }
+  .flow-step h4 {
+    font-size: 17px; font-weight: 700; text-transform: uppercase;
+    font-variation-settings: "wdth" 106;
+    margin: 26px 0 10px;
+  }
+  .flow-step p { font-size: 14px; line-height: 1.6; color: #4A4636; }
+  .flow-step .tag {
+    display: inline-block; margin-top: 14px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #A07E14; border: 1px solid rgba(160,126,20,.4);
+    padding: 4px 10px;
+  }
+  @media (max-width: 900px) { .flow { grid-template-columns: repeat(2, 1fr); row-gap: 54px; } }
+  @media (max-width: 560px) { .flow { grid-template-columns: 1fr; } }
+
+  .ledger {
+    margin-top: 90px;
+    display: grid; grid-template-columns: 1.1fr .9fr; gap: 60px;
+    align-items: start;
+  }
+  .invoice-card {
+    background: #FDFBF4;
+    border: 1px solid rgba(10,16,31,.2);
+    box-shadow: 10px 10px 0 rgba(10,16,31,.9);
+    padding: 34px;
+  }
+  .invoice-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 18px; margin-bottom: 8px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .invoice-head .t { font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: 15px; }
+  .invoice-head .n { font-family: var(--font-mono); font-size: 11px; color: #7A7460; }
+  .invoice-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 13px 0;
+    border-bottom: 1px dashed rgba(10,16,31,.25);
+    font-size: 14.5px;
+  }
+  .invoice-row .amt { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; }
+  .invoice-row small { display: block; color: #7A7460; font-size: 12px; }
+  .invoice-total {
+    display: flex; justify-content: space-between;
+    padding-top: 16px; margin-top: 6px;
+    font-weight: 800; font-size: 17px;
+    border-top: 2px solid var(--ink);
+  }
+  .invoice-total .amt { font-family: var(--font-mono); }
+  .invoice-stamp {
+    margin-top: 22px;
+    display: inline-block;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--green);
+    border: 2px solid var(--green);
+    padding: 8px 14px;
+    transform: rotate(-3deg);
+  }
+  .ledger-copy h3 {
+    font-size: 26px; font-weight: 800; text-transform: uppercase;
+    font-variation-settings: "wdth" 108; letter-spacing: -.01em;
+    margin-bottom: 18px;
+  }
+  .ledger-copy p { color: #4A4636; font-size: 16px; margin-bottom: 16px; }
+  .ledger-points { list-style: none; margin-top: 26px; }
+  .ledger-points li {
+    display: flex; gap: 14px; align-items: baseline;
+    padding: 13px 0;
+    border-top: 1px solid rgba(10,16,31,.15);
+    font-size: 15px;
+  }
+  .ledger-points li::before {
+    content: "→"; color: #A07E14; font-weight: 700; flex: none;
+  }
+  @media (max-width: 900px) { .ledger { grid-template-columns: 1fr; } }
+
+  /* ================= ROLES ================= */
+  .roles { padding: 120px 0; border-top: 1px solid var(--hairline-w); }
+  .roles-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .role {
+    border: 1px solid var(--hairline-w);
+    padding: 30px 26px 34px;
+    background: linear-gradient(180deg, rgba(22,35,74,.35), transparent);
+    position: relative;
+    overflow: hidden;
+    transition: border-color .3s, transform .3s;
+  }
+  .role:hover { border-color: var(--hairline); transform: translateY(-4px); }
+  .role::after {
+    content: attr(data-glyph);
+    position: absolute; right: -12px; bottom: -34px;
+    font-size: 130px; font-weight: 800; line-height: 1;
+    color: rgba(201,162,39,.07);
+    font-variation-settings: "wdth" 62;
+    pointer-events: none;
+  }
+  .role-tag {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--gold);
+    display: inline-block;
+    border: 1px solid var(--hairline);
+    padding: 5px 10px;
+    margin-bottom: 22px;
+  }
+  .role h3 { font-size: 19px; font-weight: 700; text-transform: uppercase; font-variation-settings: "wdth" 106; margin-bottom: 12px; }
+  .role p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+  @media (max-width: 1000px) { .roles-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .roles-grid { grid-template-columns: 1fr; } }
+
+  /* ================= REPORTS ================= */
+  .reports { padding: 120px 0; border-top: 1px solid var(--hairline-w); position: relative; }
+  .reports::before {
+    content: "05626P0001";
+    position: absolute; top: 40px; right: -60px;
+    font-size: 190px; font-weight: 800;
+    font-variation-settings: "wdth" 62;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(201,162,39,.09);
+    letter-spacing: -.02em;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 70px; }
+  .report-row {
+    display: flex; align-items: baseline; gap: 20px;
+    padding: 17px 4px;
+    border-bottom: 1px solid var(--hairline-w);
+    transition: background .2s, padding-left .2s;
+  }
+  .report-row:hover { background: rgba(201,162,39,.04); padding-left: 12px; }
+  .report-row .no { font-family: var(--font-mono); font-size: 11px; color: var(--gold); flex: none; width: 30px; }
+  .report-row .name { font-size: 15.5px; font-weight: 500; }
+  .report-row .freq { margin-left: auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim-2); flex: none; }
+  .reports-note {
+    margin-top: 44px;
+    display: flex; gap: 16px; align-items: baseline;
+    border: 1px solid var(--hairline);
+    padding: 22px 26px;
+    max-width: 720px;
+  }
+  .reports-note .plus { color: var(--gold); font-weight: 800; font-size: 22px; flex: none; }
+  .reports-note p { color: var(--dim); font-size: 15px; }
+  .reports-note strong { color: var(--white); }
+  @media (max-width: 860px) { .reports-grid { grid-template-columns: 1fr; } .reports::before { display: none; } }
+
+  /* ================= SECURITY ================= */
+  .security {
+    padding: 120px 0;
+    border-top: 1px solid var(--hairline-w);
+    background:
+      radial-gradient(800px 400px at 20% 100%, rgba(201,162,39,.06), transparent 60%),
+      var(--ink-2);
+  }
+  .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 10px; }
+  .cert {
+    border: 1px solid var(--hairline);
+    padding: 30px 28px;
+    background: rgba(10,16,31,.5);
+  }
+  .cert .mono-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--gold);
+    display: block; margin-bottom: 14px;
+  }
+  .cert h3 { font-size: 20px; font-weight: 700; text-transform: uppercase; font-variation-settings: "wdth" 106; margin-bottom: 10px; }
+  .cert p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+  @media (max-width: 900px) { .sec-grid { grid-template-columns: 1fr; } }
+
+  .integrations {
+    margin-top: 70px;
+    display: flex; flex-wrap: wrap; gap: 14px;
+  }
+  .int-chip {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim);
+    border: 1px dashed var(--hairline-w);
+    padding: 12px 20px;
+    transition: color .2s, border-color .2s;
+  }
+  .int-chip:hover { color: var(--gold-bright); border-color: var(--gold); }
+
+  /* ================= TIMELINE / RFP ALIGNMENT ================= */
+  .align { padding: 120px 0; border-top: 1px solid var(--hairline-w); }
+  .align-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 70px; align-items: start; }
+  .align-copy p { color: var(--dim); font-size: 17px; margin: 18px 0; }
+  .align-copy strong { color: var(--white); }
+  .keydates { border: 1px solid var(--hairline); }
+  .keydate {
+    display: grid; grid-template-columns: 150px 1fr;
+    border-bottom: 1px solid var(--hairline-w);
+  }
+  .keydate:last-child { border-bottom: none; }
+  .keydate .d {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em;
+    color: var(--gold);
+    padding: 20px 22px;
+    border-right: 1px solid var(--hairline-w);
+  }
+  .keydate .e { padding: 20px 22px; font-size: 15px; }
+  .keydate .e small { display: block; color: var(--dim); font-size: 12.5px; margin-top: 3px; }
+  @media (max-width: 900px) { .align-grid { grid-template-columns: 1fr; } }
+
+  /* ================= CTA ================= */
+  .final-cta {
+    padding: 140px 0 150px;
+    text-align: center;
+    border-top: 1px solid var(--hairline-w);
+    background:
+      radial-gradient(700px 380px at 50% 0%, rgba(201,162,39,.09), transparent 65%),
+      var(--ink);
+    position: relative;
+  }
+  .final-cta h2 { max-width: 18ch; margin: 0 auto 26px; }
+  .final-cta p { color: var(--dim); max-width: 520px; margin: 0 auto 44px; font-size: 18px; }
+  .final-cta .btn-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+  /* ================= FOOTER ================= */
+  footer {
+    border-top: 1px solid var(--hairline-w);
+    padding: 44px 0;
+  }
+  .foot-inner {
+    display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap;
+  }
+  .foot-legal { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim-2); line-height: 2; }
+  .foot-legal a:hover { color: var(--gold-bright); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    html { scroll-behavior: auto; }
+    h1 .line > span { transform: none; }
+    .hero-sub, .hero-ctas, .stats { opacity: 1; }
+    .reveal { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">F</span>
+      <span class="brand-name">Fixed<em>post</em></span>
+    </a>
+    <nav>
+      <a href="#platform">Platform</a>
+      <a href="#payments">Payments</a>
+      <a href="#roles">Roles</a>
+      <a href="#reports">Reporting</a>
+      <a href="#security">Security</a>
+      <a href="#rfp">RFP 05626P0001</a>
+    </nav>
+    <a class="top-cta" href="#contact">Request Briefing</a>
+  </div>
+</header>
+
+<!-- ============ TICKER ============ -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track" id="ticker-track">
+    <span>NYPD Paid Detail Application &amp; Software Platform</span>
+    <span>EPIN 05626P0001</span>
+    <span>6,500 officers today — built for 33,000</span>
+    <span>300 clients · 500 locations</span>
+    <span>Officers paid by Friday. Every week.</span>
+    <span>$0 in fees to officers — ever</span>
+    <span>FedRAMP-aligned cloud · SOC 2</span>
+    <span>24/7/365 live support</span>
+  </div>
+</div>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="wrap">
+      <span class="hero-kicker">Purpose-built for law-enforcement paid detail programs</span>
+      <h1>
+        <span class="line"><span>Off-duty details.</span></span>
+        <span class="line"><span class="accent">On-duty</span></span>
+        <span class="line"><span>discipline.</span></span>
+      </h1>
+      <p class="hero-sub">
+        Fixedpost is a working platform for <strong>scheduling, assignment, billing, and reporting</strong>
+        of uniformed off-duty security details — one system connecting officers, clients, and the
+        Paid Detail Unit, with an audit trail behind every action.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-gold" href="#contact">Request a live demo <span class="arrow">→</span></a>
+        <a class="btn btn-ghost" href="#platform">Explore the platform <span class="arrow">↓</span></a>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num"><span class="count" data-count="6500">0</span><span class="unit">+</span></div>
+          <div class="stat-label">Officers supported at day-one scale — with headroom for all 33,000 UMOS</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num"><span class="count" data-count="500">0</span><span class="unit">+</span></div>
+          <div class="stat-label">Client locations coordinated across 300+ participating businesses</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num"><span class="unit">$</span><span class="count" data-count="0">0</span></div>
+          <div class="stat-label">Fees charged to officers — compensation flows to them, untouched</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">FRI<span class="unit">.</span></div>
+          <div class="stat-label">Guaranteed weekly officer payout — regardless of client payment status</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DETAIL BOARD ============ -->
+  <section class="board-section">
+    <div class="wrap">
+      <div class="board reveal">
+        <div class="board-head">
+          <div class="board-title"><span class="dot"></span><span>Live Detail Board — Citywide</span></div>
+          <div class="board-clock" id="clock">NEW YORK — 00:00:00</div>
+        </div>
+        <table class="board-table">
+          <thead>
+            <tr>
+              <th>Detail ID</th>
+              <th>Location</th>
+              <th>Tour</th>
+              <th>Assigned</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-id">PD-2027-04182</td>
+              <td class="td-loc"><strong>Flagship Retail — 5th Ave &amp; 57th St</strong><small>Midtown North · Storefront coverage</small></td>
+              <td class="td-tour">0800 – 1600</td>
+              <td class="td-officers">4 / 4 · PO ×3, SGT ×1</td>
+              <td><span class="badge badge-checked">Checked In</span></td>
+            </tr>
+            <tr>
+              <td class="td-id">PD-2027-04187</td>
+              <td class="td-loc"><strong>Bank Branch — Queens Blvd</strong><small>112th Pct · Armed presence, lobby</small></td>
+              <td class="td-tour">0900 – 1700</td>
+              <td class="td-officers">2 / 2 · PO ×2</td>
+              <td><span class="badge badge-filled">Filled</span></td>
+            </tr>
+            <tr>
+              <td class="td-id">PD-2027-04191</td>
+              <td class="td-loc"><strong>House of Worship — Ocean Pkwy</strong><small>Midwood · Service hours detail</small></td>
+              <td class="td-tour">1730 – 2130</td>
+              <td class="td-officers">3 / 3 · PO ×2, SGT ×1</td>
+              <td><span class="badge badge-filled">Filled</span></td>
+            </tr>
+            <tr>
+              <td class="td-id">PD-2027-04196</td>
+              <td class="td-loc"><strong>Department Store — Herald Sq</strong><small>Midtown South · Peak-hours floor detail</small></td>
+              <td class="td-tour">1200 – 2000</td>
+              <td class="td-officers">5 / 6 · PO ×5</td>
+              <td><span class="badge badge-posted">1 Slot Open</span></td>
+            </tr>
+            <tr>
+              <td class="td-id">PD-2027-04173</td>
+              <td class="td-loc"><strong>Office Tower — Hudson Yards</strong><small>Midtown South · Lobby &amp; loading dock</small></td>
+              <td class="td-tour">0700 – 1500</td>
+              <td class="td-officers">2 / 2 · PO ×1, LT ×1</td>
+              <td><span class="badge badge-closed">Closed Out</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="board-foot">
+          <span>Eligibility engine: <span class="ok">All assigned UMOS verified today 0600</span></span>
+          <span>Auto-numbered · Fully audited</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PLATFORM SCOPE ============ -->
+  <section class="scope" id="platform">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index">SEC. 01</span>
+        <div>
+          <h2>One platform.<br>The <span class="accent">entire program.</span></h2>
+          <p class="sec-sub">Every operational requirement of a paid detail program — scheduling through 1099 —
+          handled in a single system of record. No spreadsheets, no side channels, no gaps in the audit trail.</p>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="pillars">
+        <div class="pillar reveal" style="--i:0">
+          <span class="pillar-idx">01 / SCHEDULING</span>
+          <h3>Automated Scheduling</h3>
+          <p>Clients post details; eligible officers see and claim them in seconds. Business rules, eligibility checks, and validation run on every action.</p>
+          <ul>
+            <li>Rules engine for UMOS eligibility criteria</li>
+            <li>Auto un-scheduling of ineligible officers</li>
+            <li>Service Eligibility Flag enforcement</li>
+            <li>Automated notifications on every change</li>
+          </ul>
+        </div>
+        <div class="pillar reveal" style="--i:1">
+          <span class="pillar-idx">02 / ATTENDANCE</span>
+          <h3>Digital Check-In / Out</h3>
+          <p>Secure mobile attendance verification with electronic paid detail slips — generated, signed, and printable across mobile and desktop.</p>
+          <ul>
+            <li>Mobile check-in/check-out verification</li>
+            <li>Electronic detail slips, print-ready</li>
+            <li>PDU notifications on officer check-in</li>
+            <li>Offline mode for mission-critical features</li>
+          </ul>
+        </div>
+        <div class="pillar reveal" style="--i:2">
+          <span class="pillar-idx">03 / BILLING</span>
+          <h3>Consolidated Invoicing</h3>
+          <p>One itemized invoice per assignment — officer compensation, the 10% administrative fee, and the platform fee — collected once, distributed automatically.</p>
+          <ul>
+            <li>ACH, wire, and major credit cards</li>
+            <li>PCI-DSS compliant, end-to-end encrypted</li>
+            <li>Automated dunning for outstanding balances</li>
+            <li>Pre-pay and post-pay client models</li>
+          </ul>
+        </div>
+        <div class="pillar reveal" style="--i:0">
+          <span class="pillar-idx">04 / PAYOUTS</span>
+          <h3>Guaranteed Officer Pay</h3>
+          <p>Direct deposit to every officer no later than Friday of the week following the detail — funded by us even when a client pays late.</p>
+          <ul>
+            <li>$0 in fees to officers, ever</li>
+            <li>W-9 upload, review &amp; PDU approval flow</li>
+            <li>Consolidated 1099 per officer by Feb 1</li>
+            <li>Full transaction history &amp; audit trail</li>
+          </ul>
+        </div>
+        <div class="pillar reveal" style="--i:1">
+          <span class="pillar-idx">05 / OVERSIGHT</span>
+          <h3>PDU Command &amp; Control</h3>
+          <p>Real-time visibility into assignment status, attendance, payments, and performance — with supervised override authority when the job demands it.</p>
+          <ul>
+            <li>Cap override, restricted to PDU supervisors</li>
+            <li>Every override logged: user, time, rationale</li>
+            <li>Agency coordinator verification views</li>
+            <li>Client vetting, exclusion &amp; restriction tools</li>
+          </ul>
+        </div>
+        <div class="pillar reveal" style="--i:2">
+          <span class="pillar-idx">06 / COMMUNICATION</span>
+          <h3>Secure Messaging</h3>
+          <p>Real-time, in-platform communication between officers and clients, with group messaging and department-wide announcements.</p>
+          <ul>
+            <li>Officer ↔ client secure channels</li>
+            <li>Group messaging &amp; broadcast announcements</li>
+            <li>Guidelines acknowledgment gate at enrollment</li>
+            <li>Automated shift reminders, both sides</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MONEY FLOW (PAPER) ============ -->
+  <section class="paper-sec" id="payments">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index" style="color:#A07E14">SEC. 02</span>
+        <div>
+          <h2>Money moves <span class="accent">like clockwork.</span></h2>
+          <p class="sec-sub">A single collection, an automatic three-way split, and a guarantee:
+          the officer is paid on time whether or not the client is.</p>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="flow" style="margin-top:70px">
+        <div class="flow-step reveal" style="--i:0">
+          <h4>Client is invoiced</h4>
+          <p>One itemized invoice per assignment: officer compensation at NYPD-set rates, the 10% NYPD administrative fee, and the platform management fee.</p>
+          <span class="tag">ACH · Wire · Card</span>
+        </div>
+        <div class="flow-step reveal" style="--i:1">
+          <h4>Funds are split</h4>
+          <p>On collection, the platform automatically distributes funds by predefined allocation rules — no manual reconciliation, no commingling.</p>
+          <span class="tag">Automatic allocation</span>
+        </div>
+        <div class="flow-step reveal" style="--i:2">
+          <h4>Officer is paid</h4>
+          <p>Direct deposit lands no later than Friday of the following week. If a client is late, we advance the payment. Officers never wait, never pay fees.</p>
+          <span class="tag">Guaranteed Friday</span>
+        </div>
+        <div class="flow-step reveal" style="--i:3">
+          <h4>City is remitted</h4>
+          <p>The 10% administrative fee passes through to NYPD with monthly deposit reporting — and a CityPay-ready integration path.</p>
+          <span class="tag">10% pass-through</span>
+        </div>
+      </div>
+
+      <div class="ledger">
+        <div class="invoice-card reveal">
+          <div class="invoice-head">
+            <span class="t">Detail Invoice</span>
+            <span class="n">PD-2027-04182 · Sample</span>
+          </div>
+          <div class="invoice-row">
+            <span>Officer compensation<small>6 hrs × $49.00 / hr — rate set by NYPD</small></span>
+            <span class="amt">$294.00</span>
+          </div>
+          <div class="invoice-row">
+            <span>NYPD administrative fee<small>10% — collected &amp; passed through to the City</small></span>
+            <span class="amt">$29.40</span>
+          </div>
+          <div class="invoice-row">
+            <span>Platform management fee<small>6 hrs × hourly management rate</small></span>
+            <span class="amt">$30.00</span>
+          </div>
+          <div class="invoice-total">
+            <span>Total invoice to client</span>
+            <span class="amt">$353.40</span>
+          </div>
+          <span class="invoice-stamp">Officer paid Friday</span>
+        </div>
+        <div class="ledger-copy reveal" style="--i:1">
+          <h3>Full financial liability. Ours.</h3>
+          <p>The platform assumes all financial risk for delayed or non-payment by clients, and guarantees timely
+          weekly disbursements to both the City and its officers. Under no circumstances is the Department,
+          its officers, or the City left holding a client's balance.</p>
+          <ul class="ledger-points">
+            <li>Pre-services and post-services payment options — or both, per client</li>
+            <li>Real-time payment confirmation and digital receipts</li>
+            <li>Nonpayment reporting flags balances outstanding beyond two months</li>
+            <li>Fraud prevention and transaction tracking on every payment</li>
+            <li>Payroll-system integration with consolidated annual 1099s</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROLES ============ -->
+  <section class="roles" id="roles">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index">SEC. 03</span>
+        <div>
+          <h2>Built for <span class="accent">every seat</span> in the program.</h2>
+          <p class="sec-sub">Four roles, four tailored experiences — one shared source of truth,
+          governed by role-based access control at every layer.</p>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="roles-grid">
+        <div class="role reveal" data-glyph="01" style="--i:0">
+          <span class="role-tag">UMOS / Officers</span>
+          <h3>Claim. Work. Get Paid.</h3>
+          <p>Apply for the program from an NYPD mobile phone, browse eligible details, submit availability,
+          check in on site, and watch the deposit land by Friday. iOS and Android, with offline support in the field.</p>
+        </div>
+        <div class="role reveal" data-glyph="02" style="--i:1">
+          <span class="role-tag">Clients</span>
+          <h3>Coverage on Demand</h3>
+          <p>Register through the portal, post shifts, track officer attendance in real time, and settle a single
+          itemized invoice. A 24/7/365 support line stands behind every request.</p>
+        </div>
+        <div class="role reveal" data-glyph="03" style="--i:2">
+          <span class="role-tag">NYPD Admin / PDU</span>
+          <h3>Total Oversight</h3>
+          <p>Live assignment status, attendance records, payment tracking, W-9 approvals, and performance
+          monitoring — plus supervised overrides, each one captured in the audit log.</p>
+        </div>
+        <div class="role reveal" data-glyph="04" style="--i:3">
+          <span class="role-tag">Platform Admin</span>
+          <h3>Operate &amp; Adapt</h3>
+          <p>Configure eligibility rules, job-type groups, and agency-coordinator workflows as policy evolves —
+          without waiting on a development cycle.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REPORTS ============ -->
+  <section class="reports" id="reports">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index">SEC. 04</span>
+        <div>
+          <h2>Every report the program<br>runs on. <span class="accent">Day one.</span></h2>
+          <p class="sec-sub">All standard reports from the existing Paid Detail system, replicated and ready —
+          plus a custom report builder that never makes you reach for Excel.</p>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="reports-grid reveal">
+        <div>
+          <div class="report-row"><span class="no">R-01</span><span class="name">Administrative Fee Deposit Report</span><span class="freq">Monthly</span></div>
+          <div class="report-row"><span class="no">R-02</span><span class="name">Administrative Fee Report by Client</span><span class="freq">Monthly</span></div>
+          <div class="report-row"><span class="no">R-03</span><span class="name">Payment &amp; Assignment Summary</span><span class="freq">Bi-weekly</span></div>
+          <div class="report-row"><span class="no">R-04</span><span class="name">Executive Paid Detail Daily Roll Call</span><span class="freq">Daily</span></div>
+          <div class="report-row"><span class="no">R-05</span><span class="name">Executive Schedules &amp; Time Counts</span><span class="freq">D / W / M</span></div>
+        </div>
+        <div>
+          <div class="report-row"><span class="no">R-06</span><span class="name">Nonpayment Report — balances &gt; 2 months</span><span class="freq">Ongoing</span></div>
+          <div class="report-row"><span class="no">R-07</span><span class="name">Average Assignment by Officer Rank</span><span class="freq">Monthly</span></div>
+          <div class="report-row"><span class="no">R-08</span><span class="name">Fiscal Year Revenue Forecast</span><span class="freq">Annual</span></div>
+          <div class="report-row"><span class="no">R-09</span><span class="name">Client Activity by Precinct / Category</span><span class="freq">Sortable</span></div>
+          <div class="report-row"><span class="no">R-10</span><span class="name">Rank-Based Time Report by Date Range</span><span class="freq">On demand</span></div>
+        </div>
+      </div>
+
+      <div class="reports-note reveal">
+        <span class="plus">+</span>
+        <p><strong>Custom reports, no third-party software.</strong> Authorized users build and extract new reports
+        directly in the platform — designed to flex as operational needs evolve, so the system adapts to the
+        Department rather than the other way around.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECURITY ============ -->
+  <section class="security" id="security">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index">SEC. 05</span>
+        <div>
+          <h2>Security worthy of<br>a <span class="accent">police department.</span></h2>
+          <p class="sec-sub">Sensitive officer data demands more than checkbox compliance.
+          The platform is engineered for the standards NYPD holds itself to.</p>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="sec-grid">
+        <div class="cert reveal" style="--i:0">
+          <span class="mono-label">Infrastructure</span>
+          <h3>FedRAMP-Aligned Cloud</h3>
+          <p>Hosted in a secure, government-approved cloud environment compliant with FedRAMP standards —
+          continuously backed up, encrypted at rest and in transit, with intrusion detection and prevention.</p>
+        </div>
+        <div class="cert reveal" style="--i:1">
+          <span class="mono-label">Attestation</span>
+          <h3>SOC 2, Renewed Annually</h3>
+          <p>Independent SOC 2 certification with annual renewals, regular security audits, and vulnerability
+          assessments — plus compliance with federal, state, and New York City data-privacy regulations.</p>
+        </div>
+        <div class="cert reveal" style="--i:2">
+          <span class="mono-label">Access Control</span>
+          <h3>Tiered RBAC + Full Audit</h3>
+          <p>Role-based access for officers, clients, PDU, and administrators with tiered permissions assignable
+          by the Paid Detail Unit. Every action attributable. Every override justified and logged.</p>
+        </div>
+      </div>
+
+      <div class="integrations reveal">
+        <span class="int-chip">NYPD Medical District — Sick / Limited / Restricted sync</span>
+        <span class="int-chip">NYPD CPR — Command Code Changes</span>
+        <span class="int-chip">Daily automated eligibility sweep</span>
+        <span class="int-chip">CityPay-ready</span>
+        <span class="int-chip">Payroll system integration</span>
+        <span class="int-chip">API-first architecture</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RFP ALIGNMENT ============ -->
+  <section class="align" id="rfp">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-index">SEC. 06</span>
+        <div>
+          <h2>Aligned to <span class="accent">EPIN 05626P0001.</span></h2>
+        </div>
+        <div class="sec-head-rule"></div>
+      </div>
+
+      <div class="align-grid">
+        <div class="align-copy reveal">
+          <p>The NYPD is seeking a vendor with <strong>an existing platform and application</strong> for the
+          Paid Detail Program — one capable of supporting today's 6,500 participating officers and scaling
+          substantially beyond them.</p>
+          <p>That is precisely what we have developed. Not a proposal to build — <strong>a working system to
+          configure</strong>: rules engine, mobile apps, payment rails, reporting suite, and the operational
+          discipline to run them, ready for the Department's enhancements.</p>
+          <p>Our team has reviewed the full solicitation — the RFP, Addendum 1, the security requirements
+          attachment, the cloud rider, and all associated riders — and built our operational plan around them.</p>
+        </div>
+        <div class="keydates reveal" style="--i:1">
+          <div class="keydate">
+            <span class="d">JUL 08 2026</span>
+            <span class="e">RFx Released in PASSPort<small>NYC's end-to-end digital procurement platform</small></span>
+          </div>
+          <div class="keydate">
+            <span class="d">JUL 14 2026</span>
+            <span class="e">Pre-Proposal Conference<small>Virtual — Microsoft Teams, hosted by NYPD</small></span>
+          </div>
+          <div class="keydate">
+            <span class="d">PER PASSPORT</span>
+            <span class="e">Proposals Due<small>Submitted via PASSPort per RFP Section IV</small></span>
+          </div>
+          <div class="keydate">
+            <span class="d">APR 01 2027</span>
+            <span class="e">Anticipated Contract Start<small>5-year base term · two 3-year renewal options</small></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="final-cta" id="contact">
+    <div class="wrap">
+      <h2 class="reveal">See the platform <span class="accent">run a detail</span> end-to-end.</h2>
+      <p class="reveal" style="--i:1">Thirty minutes. A posted shift, an officer check-in, a split payment,
+      and the report that proves it — live, not slideware.</p>
+      <div class="btn-row reveal" style="--i:2">
+        <a class="btn btn-gold" href="mailto:briefings@fixedpost.systems">Request a briefing <span class="arrow">→</span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">F</span>
+      <span class="brand-name">Fixed<em>post</em></span>
+    </a>
+    <div class="foot-legal">
+      Fixedpost Systems · New York, NY<br>
+      Independent vendor. Not affiliated with or endorsed by the City of New York or the NYPD.<br>
+      Reference: NYC PASSPort EPIN 05626P0001 — Paid Detail Application and Software Platform.
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- live NYC clock ----
+  const clockEl = document.getElementById('clock');
+  function tick() {
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'America/New_York' });
+    clockEl.textContent = 'NEW YORK — ' + now;
+  }
+  tick(); setInterval(tick, 1000);
+
+  // ---- duplicate ticker content for seamless loop ----
+  const track = document.getElementById('ticker-track');
+  track.innerHTML += track.innerHTML;
+
+  // ---- scroll reveals ----
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // ---- count-up stats ----
+  const counters = document.querySelectorAll('.count');
+  const cio = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const target = parseInt(el.dataset.count, 10);
+      const dur = 1400, start = performance.now();
+      function step(t) {
+        const p = Math.min((t - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased).toLocaleString();
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+      cio.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  counters.forEach(c => cio.observe(c));
+</script>
+</body>
+</html>
